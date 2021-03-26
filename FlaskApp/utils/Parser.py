@@ -16,7 +16,7 @@ class Parser:
                 courier.courier_id = j.get("courier_id")
                 courier.courier_type = courier.CourierType[j.get('courier_type')]
                 courier.set_working_hours(j.get('working_hours'))
-                courier.regions = j.get('regions')
+                courier.regions = list(set(j.get('regions')))
                 data_base.save_courier(courier)
 
     @staticmethod

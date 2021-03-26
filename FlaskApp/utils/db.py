@@ -5,7 +5,7 @@ from datetime import datetime
 
 
 class DataBase:
-    DATABASE = '/var/www/FlaskApp/FlaskApp/DataBase/mydatabase.db'
+    DATABASE = 'mydatabase.db'
 
     def __init__(self):
         conn = sqlite3.connect(self.DATABASE)
@@ -65,34 +65,45 @@ class DataBase:
         cursor = conn.cursor()
         cursor.execute(f"SELECT * FROM Couriers WHERE courier_id={courier_id}")
         conn.commit()
-        return cursor.fetchone()
+        ans = cursor.fetchone()
+        cursor.close()
+        conn.close()
+        return ans
 
     def get_order_by_id(self, order_id):
         conn = sqlite3.connect(self.DATABASE)
         cursor = conn.cursor()
         cursor.execute(f"SELECT * FROM Orders WHERE order_id={order_id}")
         conn.commit()
-        return cursor.fetchone()
+        ans = cursor.fetchone()
+        cursor.close()
+        conn.close()
+        return ans
 
     def get_orders_to_assign(self, max_weight: float):
         conn = sqlite3.connect(self.DATABASE)
         cursor = conn.cursor()
         cursor.execute(f"SELECT * FROM Orders WHERE weight<{max_weight}  AND status = 0 ")
         conn.commit()
-        return cursor.fetchall()
+        ans = cursor.fetchall()
+        cursor.close()
+        conn.close()
+        return ans
 
     def add_assign_to_order(self, courier_id: int, order_id: int):
         conn = sqlite3.connect(self.DATABASE)
         cursor = conn.cursor()
         cursor.execute(f"UPDATE Orders SET courier_id ='{courier_id}', status=1 WHERE order_id = '{order_id}'")
         conn.commit()
+        cursor.close()
         conn.close()
 
     def remove_order_from_courier(self, courier_id, order_id):
         conn = sqlite3.connect(self.DATABASE)
         cursor = conn.cursor()
-        cursor.execute(f"UPDATE Orders SET courier_id =NULL, status=0, assign_time=NULL WHERE order_id = '{order_id}'")
+        cursor.execute(f"UPDATE Orders SET courier_id =NULL, status=0, assign_time=NULL  WHERE order_id = '{order_id}'")
         conn.commit()
+        cursor.close()
         conn.close()
 
     def add_assign_time_to_orders(self, order_id, assign_time):
@@ -100,6 +111,7 @@ class DataBase:
         cursor = conn.cursor()
         cursor.execute(f"UPDATE Orders SET assign_time ='{assign_time}' WHERE order_id = '{order_id}'")
         conn.commit()
+        cursor.close()
         conn.close()
 
     def get_courier_orders(self, courier_id):
@@ -107,7 +119,10 @@ class DataBase:
         cursor = conn.cursor()
         cursor.execute(f"SELECT * FROM Orders WHERE courier_id = {courier_id}")
         conn.commit()
-        return cursor.fetchall()
+        ans = cursor.fetchall()
+        cursor.close()
+        conn.close()
+        return ans
 
     def set_complete_time_to_order(self, order, complete_time):
         conn = sqlite3.connect(self.DATABASE)
@@ -115,8 +130,8 @@ class DataBase:
         cursor.execute(
             f"UPDATE Orders SET complete_time ='{complete_time}', status = 2 WHERE order_id = {order.order_id}")
         conn.commit()
+        cursor.close()
         conn.close()
-        return
 
     def complete_order(self, order, complete_time):
         conn = sqlite3.connect(self.DATABASE)
@@ -144,6 +159,7 @@ class DataBase:
                                 """
             )
             conn.commit()
+            cursor.close()
             conn.close()
             self.set_complete_time_to_order(order, complete_time)
             return True
@@ -151,6 +167,8 @@ class DataBase:
         last_complete_time = datetime.strptime(last_complete_order.complete_time, "%Y-%m-%dT%H:%M:%S.%fZ")
         new_average_time = (actual_complete_time - last_complete_time).total_seconds()
         if new_average_time <= 0:
+            cursor.close()
+            conn.close()
             return False
         cursor.execute(
             f"""
@@ -160,6 +178,7 @@ class DataBase:
                             """
         )
         conn.commit()
+        cursor.close()
         conn.close()
         self.set_complete_time_to_order(order, complete_time)
         return True
@@ -168,10 +187,26 @@ class DataBase:
         conn = sqlite3.connect(self.DATABASE)
         cursor = conn.cursor()
         cursor.execute(f"SELECT average_time FROM regions_stat")
-        return cursor.fetchall()
+        ans = cursor.fetchall()
+        cursor.close()
+        conn.close()
+        return ans
 
-    def get_count_orders(self, courier_id):
+    def get_count_complete_orders(self, courier_id):
         conn = sqlite3.connect(self.DATABASE)
         cursor = conn.cursor()
         cursor.execute(f"SELECT * FROM Orders WHERE status=2 AND courier_id={courier_id}")
-        return len(cursor.fetchall())
+        ans = len(cursor.fetchall())
+        cursor.close()
+        conn.close()
+        return ans
+
+    def clear_tables(self):
+        conn = sqlite3.connect(self.DATABASE)
+        cursor = conn.cursor()
+        cursor.execute(f"DELETE FROM Couriers")
+        cursor.execute(f"DELETE FROM Orders")
+        cursor.execute(f"DELETE FROM regions_stat")
+        conn.commit()
+        cursor.close()
+        conn.close()

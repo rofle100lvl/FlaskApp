@@ -11,16 +11,6 @@ from app import app, data_base
 courier_manager = Parser()
 
 
-@app.route('/')
-def hello_world():
-    return 'Hello World!'
-
-
-@app.errorhandler(400)
-def not_found(error):
-    return make_response("Bad request", 404)
-
-
 def get_min_average_time(average_times):
     min_time = average_times[0][0]
     for average_time in average_times:
@@ -35,17 +25,19 @@ def get_courier(courier_id: int):
         abort(400)
     courier_info = courier.to_dict()
     average_times = data_base.get_average_time()
+    if not data_base.get_count_complete_orders(courier.courier_id):
+        return json.dumps(courier_info), 200
     if not average_times:
         abort(400)
     t = get_min_average_time(average_times)
     courier_info["rating"] = (60 * 60 - min(t, 60 * 60)) / (60 * 60) * 5
     if courier.courier_type.name == "foot":
-        courier_info["earnings"] = 500 * 2 * data_base.get_count_orders(courier.courier_id)
+        courier_info["earnings"] = 500 * 2 * data_base.get_count_complete_orders(courier.courier_id)
     elif courier.courier_type.name == "bike":
-        courier_info["earnings"] = 500 * 5 * data_base.get_count_orders(courier.courier_id)
+        courier_info["earnings"] = 500 * 5 * data_base.get_count_complete_orders(courier.courier_id)
     elif courier.courier_type.name == "car":
-        courier_info["earnings"] = 500 * 9 * data_base.get_count_orders(courier.courier_id)
-    return json.dumps(courier_info)
+        courier_info["earnings"] = 500 * 9 * data_base.get_count_complete_orders(courier.courier_id)
+    return json.dumps(courier_info), 200
 
 
 @app.route('/couriers/<int:courier_id>', methods=['PATCH'])
@@ -61,7 +53,7 @@ def update_courier(courier_id: int):
     if Validator.validate_update_courier(response):
         courier.update_courier(response, data_base)
         data_base.update_courier(courier)
-        return json.dumps(courier.to_dict())
+        return json.dumps(courier.to_dict()), 200
     abort(400)
 
 
@@ -91,12 +83,18 @@ def create_assign():
     orders = data_base.get_orders_to_assign(courier.courier_type.value)
     complete_orders = courier.assign_orders(orders, data_base)
     if len(complete_orders.get("orders")) == 0:
-        return json.dumps(complete_orders), 200
+        return '', 200
     else:
         complete_orders["assign_time"] = datetime.utcnow().isoformat() + 'Z'
         for order_id in complete_orders.get('orders'):
             data_base.add_assign_time_to_orders(order_id.get("id"), complete_orders.get("assign_time"))
         return json.dumps(complete_orders), 200
+
+
+@app.route('/clear')
+def clear():
+    data_base.clear_tables()
+    return "Clear", 200
 
 
 @app.route('/orders/complete', methods=['POST'])
@@ -112,7 +110,7 @@ def complete_order():
         abort(400)
     if not data_base.complete_order(order, response.get("complete_time")):
         abort(400)
-    return json.dumps({"order_id": order.order_id})
+    return json.dumps({"order_id": order.order_id}), 200
 
 
 @app.route('/couriers', methods=['POST'])
