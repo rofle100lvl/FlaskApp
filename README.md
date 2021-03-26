@@ -15,4 +15,5 @@
 
 Для вопросов и предложений:
 >tg: @NeKrutoOchen
+>
 >vk: https://vk.com/rofle100lvl
